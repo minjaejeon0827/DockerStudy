@@ -1,0 +1,21 @@
+[코딩애플] 도커 Docker & Container 내용 요약
+
+도커 Docker 다운로드 방법
+참고 URL - https://junesker.tistory.com/94
+
+2강 - Docker 설치 & 이미지와 컨테이너 개념
+컨테이너(container)란?
+다운로드 받은 이미지(image)를 실행 중인 리눅스 기반 가상 컴퓨터
+
+터미널창 도커 관련 명령어 
+1) 현재 다운로드 받은 도커 이미지 목록 출력
+docker image ls
+
+2) 도커 이미지 다운로드 받기 
+docker pull hello-world
+
+3) 도커 이미지 실행 
+docker run 이미지이름:태그
+(예) docker run hello-world:latest
+
+3강 - Docker로 띄워볼 서버만들기
