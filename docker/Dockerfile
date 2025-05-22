@@ -13,7 +13,8 @@ ENV NODE_ENV=production
 
 # 자주 변동되는 소스코드 옮기기 (결과가 자동으로 캐싱됨)
 COPY . .
-EXPOSE 8080
+# 80번 포트 오픈
+EXPOSE 8080   
 
 USER node
 CMD ["node", "server.js"]
