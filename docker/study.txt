@@ -1039,3 +1039,215 @@ app.get('/add', async (req, res) => {
 
 (예) 서버에서 MySQL에 접속해서 이거저거 SQL 실행
 참고 - PWS 솔루션 -> 파일 경로 "C:\Users\bhjeon\Downloads\PWS소스_상상진화_20240910\pws-server\lib" 폴더 -> "pwsdb-dao.js" 파일 
+
+11강 - Docker compose 1. 서비스 작성하기
+
+* Docker compose 사용 전 필수 사항
+- 비쥬얼스튜디오코드(VSCode) 사용시 확장 프로그램 "Docker" 설치 필수 
+
+docker run 명령어가 슬슬 길어지면 docker를 버리고 싶어진다.
+그게 싫으면 명령어들을 한 파일에 입력해놓고 그걸 실행하는 식으로 코드짜놓아도 된다.
+
+그럴려면 shell script 이런거 짜서 실행해도 되긴 하는데
+docker compose 라는 프로그램을 쓰면 훨씬 쉽게 구현가능하다.
+
+따로 설치할 필요는 없고 docker desktop 설치할 때 같이 설치된다.
+
+* docker compose 사용하는 법
+
+1. docker-compose.yml 파일 하나 만들어서
+2. 거기다가 docker run 어쩌구 쓰던 명령어들을 쭉 나열하고
+3. 이제 터미널에서 docker compose up 이라고 입력하면 이 파일(docker-compose.yml)에 있던 내용이 쭉 실행된다.
+
+편리하죠?
+하지만 docker compose 문법 + yaml 파일형식에 맞게 .yml 파일을 채워야 한다.
+
+* services
+
+.yml 파일이 뭐냐면 일단 데이터 저장하는 용도의 파일형식이다.
+.json 아는 분들은 그 파일이랑 비슷한 것이라고 생각하면 된다.
+.yml 파일은 데이터이름 : 값 이런 식으로 저장한다.
+
+어떤 데이터에 속하는 하위 데이터는 인덴트 넣고 데이터이름 : 값 적으면 끝이다.
+(예) (docker-compose.yml)
+services:
+  컨테이너이름:
+    image: 이미지이름
+    ports: 
+      - 내컴퓨터포트:컨테이너포트
+
+그래서 아무데나 docker-compose.yml 파일 만들어서 이렇게 작성해보자. 
+services: 라고 적고 인덴트 넣어서 하위 항목으로 컨테이너 이름을 하나 작명하자.
+정확히는 서비스 이름인데 일단은 컨테이너 이름이라고 부르자.
+
+그 다음에 하위 항목으로
+image: 이미지이름 적으면 이 이미지를 컨테이너로 띄워준다.
+ports: 하위항목으로 포트바인딩 어떻게 할 건지도 정할 수 있다.
+
+- VSCode 에디터 쓰는 분들은 이런거 작성할 때 Docker 부가기능 설치하면 편리할 수 있다.
+- 참고로 예전엔 도커 version 부터 맨 위에 넣고 시작했는데 요즘은 그럴 필요 없다.
+
+* 환경변수 넣으려면
+(예1) (docker-compose.yml)
+services:
+  컨테이너이름:
+    image: 이미지이름
+    ports: 
+      - 내컴퓨터포트:컨테이너포트
+    environment:
+      - 환경변수이름=값
+      - 환경변수이름=값
+
+환경 변수는 이런식으로 하나하나 적어두면 된다.
+하나하나 적기 귀찮으면 다른 파일에 있는걸 끌어다가 쓸 수 있다.
+
+(예2) (.env)
+
+POSTGRES_USER=admin
+
+예를 들어 우리가 코딩할 때 .env파일에 환경변수를 가끔 적어놓기도 한다.
+이 파일에 있는걸 docker compose 설정파일에서 그대로 가져올 수도 있다.
+
+(예3) (docker-compose.yml)
+  environment:
+    - POSTGRES_USER: ${POSTGRES_USER}
+
+그럴려면 ${} 쓰고 .env 파일에 있는 환경변수 이름 적어주면 된다.
+.env 파일이 여러개 있으면 그 중에 어디서 가져올건지 명시하는 기능도 있는데 필요할 때 찾아쓰자.
+
+* 띄우는 명령어는
+
+(예) (docker-compose.yml)
+
+services:
+  webserver:
+    image: nodeserver:1
+    ports: 
+      - 8080:8080
+
+그래서 전에 만들어 놓은 웹서버 띄우고 싶어서 이렇게 작성해놨다.
+
+docker compose up -d   # 컨테이너 띄우기
+docker compose stop    # 컨테이너 정지
+docker compose down    # 컨테이너 삭제
+
+docker compose 파일을 기반으로 컨테이너를 띄우고, 정지하고, 삭제하려면 차례로 이런걸 입력하자.
+
+* 다른 컨테이너 띄우기
+
+웹서버는 잘 뜨는 것 같은데
+nginx같은 다른 컨테이너를 하나 더 띄우고 싶으면 
+service: 하위 항목을 더 정의하면 된다.
+그니까 띄울 이미지마다 서비스 하나씩 만들면 된다고 생각하면 된다.
+
+(예) (docker-compose.yml)
+
+services:
+  webserver:
+    image: nodeserver:1
+    ports: 
+      - 8080:8080
+
+  nginx:
+    image: nginx:1
+    ports: 
+      - 80:80
+
+그래서 저장하고 docker compose down 한 다음에 docker compose up -d 해보면
+컨테이너 2개가 동시에 잘 뜬다.
+
+* 네트워크
+
+컨테이너간 통신이 필요해서 네트워크가 필요하다면
+실은 네트워크를 따로 만들고 그럴 필요가 없다.
+
+services: 하위항목에 있는 컨테이너들은
+자동으로 네트워크 하나 만들어서 거기 전부 넣어주기 때문에 그렇다.
+
+그리고 네트워크 안에 있는 컨테이너끼리 서로 찾으려면
+IP주소 혹은 컨테이너 이름 (서비스 이름)을 기재하면 되니까 알아서 nginx와 웹서버 연결 해보면 된다.
+
+
+* 여러 컨테이너들이 서로 dependency가 있으면?
+
+컨테이너들을 띄우다보면
+어떤 컨테이너는 다른 컨테이너가 떠있어야 제대로 동작하는 경우가 있다.
+
+(예) nginx => webserver => DB
+
+예를 들어 nginx는 "웹서버에 보내주세요~"
+웹서버는 "DB에 연결해주세요~"
+이런 식으로 코드가 짜여져있는게 일반적이다.
+
+이런 경우에는 DB먼저 띄우고 웹서버 띄우고 그 다음에 nginx 띄우면 좀 안정적이지 않겠습니까.
+그리고 그래야 잘 돌아갈 것 같다.
+
+(예) (docker-compose.yml)
+
+services:
+  webserver:
+    image: nodeserver:1
+    ports: 
+      - 8080:8080
+
+  nginx:
+    image: nginx:1
+    ports: 
+      - 80:80
+    depends_on:
+      - webserver
+
+depends_on: 하위 항목으로 다른 서비스 이름을 기재할 수 있는데
+그러면 위의 코드에선 nginx는 webserver에 의존한다는 뜻이다.
+
+그럼 webserver 컨테이너가 먼저 실행된 다음 nginx 컨테이너가 실행된다.
+그래서 컨테이너 실행 순서를 결정하고 싶으면 depends_on: 을 사용해보자.
+
+* 서비스 
+docker compose에선 컨테이너를 "서비스" 안에 작성하는데
+서비스가 뭐냐면 컨테이너를 어떻게 띄울지 정의하는 일종의 가이드같은 개념이다.
+
+(예) (docker-compose.yml)
+
+services:
+  webserver:
+    image: nodeserver:1
+    ports: 
+      - 8080:8080
+
+이미지가 있으면
+
+- 어떤 포트를 열지
+- 어떤 환경변수를 넣을지
+- 컨테이너 이름은 어떻게 지을지
+
+이런걸 결정해야 이미지를 컨테이너로 실행할 수 있지 않습니까
+이런 컨테이너 실행 가이드를 docker compose에서 서비스라고 부른다.
+
+서비스라는 개념이 중요한데
+왜냐면 여러분이 나중에 컨테이너 수백개를 띄우게 되면 그걸 관리하기 위한 프로그램을 따로 사용한다. 
+
+Docker swarm, Kubernetes, AWS ECS 이런게 있는데
+이런걸 써도 항상 서비스와 비슷한 걸 작성한 뒤에 컨테이너들을 띄우게 된다.
+그래서 잘 기억해두자.
+
+서비스를 만들어두면 장점이 뭐냐면
+컨테이너 설정을 한 눈에 볼 수 있는 것도 있는데
+나중에 같은 컨테이너 여러개가 필요할 때도 편리해진다.
+
+"서비스에 써있는 내용대로 컨테이너 여러개 복사해서 띄워주세요" 이런게 가능해진다.
+
+(예) (docker-compose.yml)
+
+services:
+  webserver:
+    image: nodeserver:1
+    ports: 
+      - 8080:8080
+    deploy:
+      mode: replicated
+      replicas: 3
+
+심심하니까 진짜로 해보면 
+서비스마다 deploy: 옵션을 넣으면 같은 컨테이너를 동일한 설정으로 여러개 복제해서 띄울 수 있다.
+복제해서 실행하려면 docker compose --compatibility up 이런 명령어 쓰면 된다.

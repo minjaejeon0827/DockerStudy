@@ -1,0 +1,58 @@
+# docker-compose.yml 파일은 docker run 명령어 보관소 의미
+
+# version: '3' # Docker 버전 의미
+
+# TODO: 아래 오류 메시지 발생시 터미널창 Docker Build 명령어 "docker build -t nodeserver:1 ." 실행 후 이미지 빌드 성공하면
+#       docker-compose.yml 파일 컨테이너 관련 명령어 "docker compose up -d" 실행하기 (2025.06.05 minjae)
+# 오류 메시지 
+# " ✘ webserver Error pull access denied for nodeserver, repository does not exist or may require 'docker login': denied: requested access to the resource is denied                                         2.7s 
+# Error response from daemon: pull access denied for nodeserver, repository does not exist or may require 'docker login': denied: requested access to the resource is denied"
+# 참고 URL - https://chatgpt.com/c/6840eaa7-a580-8010-ba84-1161aee16663
+
+# 터미널창 Docker Build 명령어
+# 아래 명령어에서 마침표(.)는 Dockerfile 경로 의미 (D:\minjae\DockerStudy\docker 폴더 하단에 존재하는 Dockerfile 의미함.)
+# docker build -t nodeserver:1 .
+
+# docker-compose.yml 파일 컨테이너 관련 명령어 
+# docker compose up -d   # 컨테이너 띄우기
+# docker compose stop    # 컨테이너 정지
+# docker compose down    # 컨테이너 삭제
+# docker compose --compatibility up   # 컨테이너 여러개 복제 및 띄우기 
+
+services:
+  # docker-compose.yml 파일 컨테이너 관련 명령어 실행시 
+  # 자동으로 네트워크 생성 후 해당 네트워크 안에 아래 컨테이너 2개 전부 넣어줌.
+  webserver:   # 컨테이너 이름 "webserver"
+    image: nodeserver:1  # 컨테이너에 속한 이미지 이름 
+    ports:     # 포트 바인딩 
+      - 8080:8080
+    # environment:   # 환경변수
+    #   - name=value
+    depends_on:  # webserver 서비스(컨테이너)는 db 서비스(컨테이너)에 의존함. (db 서비스(컨테이너) 먼저 실행 -> webserver 서비스(컨테이너) 실행.)
+      - db
+    deploy:  # 컨테이너 이름 "webserver" 동일한 설정으로 3개 복제 및 띄우기 
+             # 주의사항 - 포트 바인딩 또한 8080:8080 으로 똑같이 바인딩 되므로 
+             #           docker-compose.yml 파일 컨테이너 관련 명령어 실행시 아래와 같이 오류 발생함.
+             # Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:8080 -> 127.0.0.1:0: listen tcp 0.0.0.0:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted. 
+             # Desktop   o View Config   w Enable Watch
+      mode: replicated
+      replicas: 3
+  
+  nginx:   # 컨테이너 이름 "nginx"
+    image: nginx:1
+    ports: # 포트 바인딩
+      - 80:80
+    # environment:   # 환경변수
+    #   - name=value
+    depends_on:
+      - webserver
+
+
+  db:   # 컨테이너 이름 "db"
+    image: postgres:17-alpine
+    env_file:      # 환경변수 파일이 여러개일 경우 어느 환경변수 파일에서 가져올지 설정
+      - .env   # 환경변수 파일 이름 : .env
+    environment:   # 환경변수
+      # (.env) 환경변수 파일에서 환경변수 값 가져오기
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
