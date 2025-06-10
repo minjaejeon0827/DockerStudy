@@ -26,6 +26,9 @@ services:
     image: nodeserver:1  # 컨테이너에 속한 이미지 이름 
     ports:     # 포트 바인딩 
       - 8080:8080
+    # networks:
+    #   - mynet1
+    #   - mynet2
     # environment:   # 환경변수
     #   - name=value
     depends_on:  # webserver 서비스(컨테이너)는 db 서비스(컨테이너)에 의존함. (db 서비스(컨테이너) 먼저 실행 -> webserver 서비스(컨테이너) 실행.)
@@ -42,6 +45,10 @@ services:
     image: nginx:1
     ports: # 포트 바인딩
       - 80:80
+    # restart: always  # 1. 오류로 인해 컨테이너 "nginx" 꺼져도 자동 컨테이너 "nginx" 재시작 / 2. Docker 엔진 껐다켜도 컨테이너 "nginx" 자동 시작(Docker desktop 응용 프로그램 화면 좌측하단 세로모양 버튼 "..." 클릭 -> 버튼 "Restart" 클릭 -> Docker 엔진 종료 및 시작)
+    # restart: unless-stopped   # 1. 오류로 인해 컨테이너 "nginx" 꺼져도 자동 컨테이너 "nginx" 재시작 / 2. Docker 엔진 껐다켜도 컨테이너 "nginx" 자동 시작 불가 
+    # networks:
+    #   - mynet1
     # environment:   # 환경변수
     #   - name=value
     depends_on:
@@ -56,3 +63,17 @@ services:
       # (.env) 환경변수 파일에서 환경변수 값 가져오기
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    # volumes:
+      # - 볼륨이름:/var/lib/postgresql/data
+      # - test_vol:/var/lib/postgresql/data
+      # - ./vol:/var/lib/postgresql/data   # bind mount 방식으로 volume 사용 
+    # networks:
+    #   - mynet2
+
+# volumes:
+#   test_vol:
+#     external: true   # external: true 코드가 없으면 볼륨이름 "docker_test_vol" 새로 만들어줌
+    
+# networks:
+#   mynet1:
+#   mynet2:
