@@ -24,8 +24,27 @@ services:
   # 자동으로 네트워크 생성 후 해당 네트워크 안에 아래 컨테이너 2개 전부 넣어줌.
   webserver:   # 컨테이너 이름 "webserver"
     image: nodeserver:1  # 컨테이너에 속한 이미지 이름 
-    ports:     # 포트 바인딩 
-      - 8080:8080
+    command: ["node", "server.js"]  # 컨테이너에 속한 이미지(nodeserver:1) 실행할 때 명령어(command: ["node", "server.js"]) 실행(docker compose 파일(docker-compose.yml)에서 CMD 명령어를 덮어쓸 수 있다.)
+    # (참고) 아래 build: 있어야  docker compose watch 기능 잘 작동함.
+    build: .   # 원하는 Dockerfile 경로 (docker-compose.yml 파일과 같은 상위 폴더 안에 있어야함. "D:\minjae\DockerStudy\docker" 폴더 -> "Dockerfile")
+    # TODO: 명령어 "docker compose up --watch" 실행시 아래와 같은 오류 메시지 출력되어 주석 처리 진행 (2025.06.30 minjae)
+    # 오류 메시지 - "Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:8080 -> 127.0.0.1:0: listen tcp 0.0.0.0:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.n Docker Desktop   o View Config   w Disable Watch"
+    # 참고 URL - https://chatgpt.com/c/6861d2a9-c698-8010-a643-14c593bd55cc 
+    # ports:     # 포트 바인딩 
+    #   - 8080:8080
+    develop:
+      watch:   # docker compose watch 기능 - 내 파일 변경되면 컨테이너에도 자동반영 
+        # (action: sync+restart 이런 옵션을 넣으면 sync한 후에 컨테이너 재시작하라는 뜻이다.)
+        - action: sync+restart
+        # - action: sync   # 내 컴퓨터에 있던 소스파일의 코드가 변경사항 생기면 해당 소스파일의 변경사항을 컨테이너에 복붙해줌(Ctrl+c / Ctrl+v) (- action: sync 는 내 컴퓨터에 있던 파일 변경사항을 컨테이너로 복사해주라는 뜻)
+          path: .        # 현재 docker-compose.yml 파일의 상위 폴더("D:\minjae\DockerStudy\docker" 폴더 -> "Dockerfile") (path: 에는 내 컴퓨터의 어떤 파일들 감시할건지 경로 적으면 된다.)
+          target: /app   # target: 에는 컨테이너 어디에 변동사항을 복사할건지 경로 적으면 된다.
+          # ignore: # ignore: 안에는 변동사항을 복사할 필요가 없는 파일이나 폴더("node_modules")들 기록해두면 되는데 .dockerignore 파일 쓰고 있으면 따로 적을 필요는 없다.
+          #   - node_modules/
+
+        - action: rebuild   # - action: rebuild 집어넣으면 path에 있는 파일이나 폴더가 변동사항이 생기면 그냥 아예 docker build를 다시 해달라는 뜻이다. 이미지 다시 만들라는 뜻임
+          path: package.json
+
     # networks:
     #   - mynet1
     #   - mynet2
@@ -33,13 +52,16 @@ services:
     #   - name=value
     depends_on:  # webserver 서비스(컨테이너)는 db 서비스(컨테이너)에 의존함. (db 서비스(컨테이너) 먼저 실행 -> webserver 서비스(컨테이너) 실행.)
       - db
-    deploy:  # 컨테이너 이름 "webserver" 동일한 설정으로 3개 복제 및 띄우기 
-             # 주의사항 - 포트 바인딩 또한 8080:8080 으로 똑같이 바인딩 되므로 
-             #           docker-compose.yml 파일 컨테이너 관련 명령어 실행시 아래와 같이 오류 발생함.
-             # Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:8080 -> 127.0.0.1:0: listen tcp 0.0.0.0:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted. 
-             # Desktop   o View Config   w Enable Watch
-      mode: replicated
-      replicas: 3
+    # TODO: 명령어 "docker compose up --watch" 실행시 아래와 같은 오류 메시지 출력되어 주석 처리 진행 (2025.06.30 minjae)
+    # 오류 메시지 - "Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:8080 -> 127.0.0.1:0: listen tcp 0.0.0.0:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.n Docker Desktop   o View Config   w Disable Watch"
+    # 참고 URL - https://chatgpt.com/c/6861d2a9-c698-8010-a643-14c593bd55cc 
+    # deploy:  # 컨테이너 이름 "webserver" 동일한 설정으로 3개 복제 및 띄우기 
+    #          # 주의사항 - 포트 바인딩 또한 8080:8080 으로 똑같이 바인딩 되므로 
+    #          #           docker-compose.yml 파일 컨테이너 관련 명령어 실행시 아래와 같이 오류 발생함.
+    #          # Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:8080 -> 127.0.0.1:0: listen tcp 0.0.0.0:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted. 
+    #          # Desktop   o View Config   w Enable Watch
+    #   mode: replicated
+    #   replicas: 3
   
   nginx:   # 컨테이너 이름 "nginx"
     image: nginx:1

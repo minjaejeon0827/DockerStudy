@@ -18,6 +18,7 @@ EXPOSE 8080
 
 USER node
 CMD ["node", "server.js"]
+# CMD ["nodemon", "server.js"]
 
 # FROM node:20-slim
 # # /app 폴더 이동 (cd 명령어랑 비슷)
