@@ -1816,8 +1816,10 @@ server {
           아래와 같은 오류 메시지 발생하는 경우 명령어 "docker tag nginx:latest minjaejeon0827/nginx:1"를 먼저 실행하여 이미지 "nginx"의 태그(tag)를 "1"로 붙여야함.
           Docker desktop 터미널창 명령어 실행 순서 
           1) docker images - 먼저 로컬에 있는 nginx 이미지 확인
-          2) docker tag nginx:latest minjaejeon0827/nginx:1 - 해당 이미지에 원하는 태그(tag) "1" 붙이기
+          2) docker tag nginx:latest minjaejeon0827/nginx:1 - 해당 이미지에 원하는 태그(tag) "1" 붙이기 
+             (또는 docker tag nginx:latest minjaejeon0827/mynginx:1)
           3) docker push minjaejeon0827/nginx:1 - nginx docker hub에 올려놓기(public 리포지토리명 "minjaejeon0827/nginx") 
+             (또는 docker push minjaejeon0827/mynginx:1 - public 리포지토리명 "minjaejeon0827/mynginx")
 
 오류 메시지 
 - "PS C:\Users\bhjeon> docker push minjaejeon0827/nginx:1
@@ -1828,3 +1830,171 @@ An image does not exist locally with the tag: minjaejeon0827/nginx"
 이 오류 메시지는 다음과 같은 의미이다:
 ❗ "An image does not exist locally with the tag: minjaejeon0827/nginx"
 → 즉, docker push 하려는 minjaejeon0827/nginx:1이라는 로컬 이미지가 존재하지 않는다는 뜻이다.
+
+15강 - Orchestration 2. 태스크 정의, health check
+
+▲ AWS 사이트 방문하면 우측 상단에 지역을 선택할 수 있는데
+서울에서 서비스할거면 서울(ap-northeast-2) 고르고 검색창에서 ECS(Amazon Elastic Container Service) 검색해서 들어가자.
+
+* EC2 vs Fargate
+컨테이너 띄우려면 1. 클러스터(Cluster) 만들고 2. 서비스(Service) 만들고 3. 태스크(Task) 만들면 된다.
+그래서 ECS(Amazon Elastic Container Service) 검색해서 들어가서 클러스터(Cluster) 생성부터 눌러보자.
+클러스터(Cluster)는 프로젝트 하나라고 생각하면 되는데
+근데 정확하는 내가 컴퓨터를 몇대나 미리 점유할건지 정하려고 클러스터(Cluster)를 만드는 것이다.
+
+▲ 클러스터(Cluster) 하나 생성하려면 인프라부터 고르라고 되어있을 것이다.
+EC2는 컴퓨터를 직접 빌릴 수 있는 상품이고 Fargate는 서버리스형태로 CPU, RAM을 필요할 때만 꺼내쓰는 방식이다.
+
+▲ 그래서 EC2를 고르면 컴퓨터를 원하는 용량과 갯수로 빌릴 수 있다. 
+AWS 처음 카드등록하면 t2.micro 또는 t3.micro 라는 똥컴하나 1년무료 이용권주는데 그걸 쓸 수도 있다.
+
+참고로 이미지 만들 때 사용했던 CPU 아키텍쳐와 같은 컴퓨터를 빌려야 잘돌아간다.
+대부분 AMD64 (일명 x86-64) 라는 CPU 아키텍처로 만들었을거라 그게 표기된 컴퓨터를 빌려야한다.
+드물게 ARM64로 이미지를 빌드했으면 그게 표기된 컴퓨터를 빌려서 쓰자.
+
+근데 Fargate라는 옵션을 쓰면 컴퓨터를 미리 점유하는게 아니라 서버리스형태로
+여러분이 필요할 때 마다 컴퓨터자원을 마법처럼 끌어다가 쓸 수 있다.
+
+EC2보다 요금이 20% 정도 더 비싸지만 편하니까 이걸 쓰자.
+서비스(Service) 만들어보고 바로 지우면 요금도 몇백원 나올까말까 하니까 
+그냥 까까 사먹을 돈으로 이런거 경험해보도록 하자.
+
+아무튼 다른건 딱히 건드릴 필요 없고 클러스터(Cluster) 이름 아무거나 잘 지어서 생성이나 해보자.
+
+주의사항 - 아래와 같은 오류 메시지 발생하여 테스트용 클러스터(testCluster) 실패시 아마존 웹서비스(AWS) IAM > 역할(역할 이름 - EC2ContainerServiceRole) 새로 생성하기 
+          (역할에 매핑되는 정책 - AmazonEC2ContainerServiceRole)
+          만약 테스트용 클러스터(testCluster) 계속 실패시 아마존 웹서비스(AWS) CloudFormation -> 스택 들어가서 오류가 발생한 스택 삭제하기 
+오류 메시지 - 클러스터 testCluster 생성 중 오류가 발생했습니다.
+            Resource handler returned message: "Invalid request provided: CreateCluster Invalid Request: Unable to assume the service linked role. 
+            Please verify that the ECS service linked role exists. 
+            (Service: AmazonECS; Status Code: 400; Error Code: InvalidParameterException; Request ID: 7db52101-4978-47e2-af40-85296382b043; Proxy: null)" 
+            (RequestToken: e7952b4b-b061-3338-c3c6-e5c4e47d603f, HandlerErrorCode: InvalidRequest)
+참고 URL - https://velog.io/@khyup0629/AWS-EKS-Cluster-%EC%97%AD%ED%95%A0-%EC%83%9D%EC%84%B1
+참고 2 URL - https://chatgpt.com/c/68671910-e5d0-8010-b647-a736dc957a5c
+
+* 태스크(Task) 정의 (task definition)
+클러스터(Cluster) → 서비스(Service) → 태스크(Task)를 띄운다고 했는데
+참고로 서비스(Service) 없이 클러스터(Cluster) → 태스크(Task)만 띄울 수도 있다.
+1회성 작업같은걸 하는 이미지 띄울 때는 그래도 상관없음
+
+근데 지속적으로 안정적으로 실행되어야하는 이미지는 서비스(Service) 안에 넣는게 좋다. 
+왜냐면 서비스(Service) 안에 태스크(Task)를 넣으면
+하나가 망가졌을 때 자동으로 새로운 태스크(Task)로 갈아치우는 기능,
+중단없이 태스크(Task)를 업데이트할 수 있는 기능 같은게 있어서 그렇다.
+
+태스크(Task) 정의는 태스크(Task)를 어떻게 띄울지 정의하는 파일이다.
+"무슨 이미지들을 어떤 포트에 어떤 환경변수를 넣어서 띄울지" 쭉 작성하는 파일일 뿐이고
+실은 docker compose 파일이랑 똑같다.
+하지만 ECS(Amazon Elastic Container Service) 문법에 따라 .json 형식으로 작성해야할 뿐인데
+.json 그딴거 모르겠으면 웹페이지에서 클릭질로 작성할 수 있게 되어있다.
+
+▲ 태스크(Task) 정의 만들기 누르면 일단 인프라를 또 고르게 하자.
+클러스터(Cluster)에서 예약해놨던 컴퓨터를 태스크(Task) 1개가 얼마나 점유할 것인지 정하는 부분이다.
+
+그래서 이 태스크(Task)가 얼마의 CPU, 메모리가 필요한지 정하면 된다.
+사진에선 CPU 1개, 메모리 2GB를 골라봤는데
+이 태스크(Task) 안에 컨테이너가 여러개 있을 예정이면 CPU 1개, 메모리 2GB를 컨테이너간 나눠써야한다.
+
+나중에 변경 가능하니까 대충하자.
+
+주의사항 - 태스크(Task) 역할(ecsTaskExecutionRole) 생성하고 태스크(Task) 정의 만들기 시작하기 
+참고 URL - https://docs.aws.amazon.com/ko_kr/AmazonECS/latest/developerguide/task_execution_IAM_role.html
+
+Elastic Container Service에 대한 서비스 역할을 생성하는 방법(IAM 콘솔)
+1. AWS Management Console에 로그인하여 https://console.aws.amazon.com/iam/ 에서 IAM 콘솔을 엽니다.
+2. IAM 콘솔의 탐색 창에서 역할을 선택하고 역할 생성을 선택합니다.
+3. 신뢰할 수 있는 엔터티 유형에 AWS 서비스를 선택합니다.
+4. 서비스 또는 사용 사례의 경우 Elastic Container Service를 선택하고 Elastic Container Service 작업 사용 사례를 선택합니다.
+5. 다음을 선택합니다.
+6. 권한 추가 섹션에서 AmazonECSTaskExecutionRolePolicy를 검색하고 정책을 선택합니다.
+7. 다음을 선택합니다.
+8. 역할 이름에 ecsTaskExecutionRole을 입력합니다.
+9. 역할을 검토한 다음 역할 생성을 선택합니다.
+
+* 태스크(Task) 정의 안에 컨테이너 작성하기
+
+▲ 태스크(Task) 정의 안엔 컨테이너를 어떻게 띄울지 작성할 수 있다.
+우리는 nginx, 웹서버(nodeserver)를 띄울 것이기 때문에 2개 띄운다고 작성하면 된다.
+
+일단 첫 컨테이너엔 웹서버(nodeserver) 컨테이너 띄운다고 이름(webserver)이랑 이미지 다운받을 수 있는 경로(이미지 URI)를 작성해봤다.
+docker hub에 올려놨을 경우엔 docker.io/내아이디/리포지토리명:태그명 입력하면 된다.
+(예) 이름 - webserver / 이미지 URI - docker.io/minjaejeon0827/myserver:latest 또는 docker.io/minjaejeon0827/myserver:1
+
+사진처럼 포트도 설정할 수 있다.
+근데 웹서버(nodeserver)는 nginx에서 접속할거라 포트를 연결할 필요는 없어보여서 지워도 될듯 하군요.
+
+▲ 컨테이너마다 CPU, 메모리를 얼마나 할당할 것인지 정할 수 있다.
+아까 저는 태스크(Task)에 CPU 1개, 메모리 2GB를 할당했는데
+그 안에서 nginx, 웹서버(nodeserver)는 각각 얼마의 CPU, 메모리를 점유할지 맘대로 결정하면 된다.
+
+메모리 제한도 설정할 수 있는데 soft limit은 메모리를 얼마나 미리 최소로 선점할지,
+hard limit은 최댓값이다.
+
+hard limit 설정하면 그걸 도달하는 경우 컨테이너가 강제종료 될텐데 아마 비워도 상관없음
+nodejs 서버의 경우에는 최소 메모리 1GB는 주는게 좋다.
+
+나중에 테스트해보면서 늘리거나 줄이거나 해도 된다.
+이외에 환경변수, 로깅옵션 이런건 필요할 때 사용하자.
+
+처음엔 에러났을 때 상세히 볼게 필요하기 때문에 로깅하라고 해놓는게 좋다.
+
+* 상태확인 (healthcheck)
+
+새로운 개념 하나만 배우고 가자.
+내 nodejs 웹서버(nodeserver) 컨테이너가 잘 떠있는지 확인하고 싶으면 어떻게 하죠?
+웹브라우저 켜서 들어가보면 되겠지만 포트 연결을 안해놨으면 그건 좀 어려울 수 있다.
+
+가장 쉬운 방법은 nodejs 웹서버(nodeserver) 컨테이너에 접속해서 localhost:8080으로 들어가보면 된다.
+터미널로 들어갈 수 있으니까 아마 curl localhost:8080 이런거 쳐보면 알 수 있겠군요.
+
+근데 그 작업을 자동화해줄 수도 있다.
+자동으로 니가 알아서 5초마다 curl localhost:8080 쳐보라고 할 수 있는데 그걸 멋있는 말로 healthcheck라고 한다. 
+
+▲ 그래서 여기에 터미널 명령어를 적으면 그걸 얘가 컨테이너 안에서 자동으로 X초마다 실행해준다.
+일종의 컨테이너 모니터링 방법이라고 생각하면 된다.
+
+CMD-SHELL, curl -f http://localhost:8080 || exit 1
+그냥 기본적으로 이거 채우고 시작하면 되는데
+CMD-SHELL 이건 bash같은 기본적인 쉘을 쓰라는 것이고
+그 오른쪽에 명령어 입력하면 되는데 대부분 curl 이런거 쓰면 된다.
+
+그리고 curl 요청이 실패하면 exit 1 하라고 코드짜면 되는데 exit 1 이런게 헬스체크를 실패했다는 암구호같은 거라 써주면 된다.
+그리고 밑에 몇초마다 할건지 이런건 쭉 읽어보면서 알아서 적으면 된다.
+
+* curl 있나 확인하는 것도 좋음
+
+근데 가끔 curl 이런 기본 프로그램이 설치 안되어있는 이미지나 OS가 있다.
+예를 들어 node:20-slim 이런 것도 이미지에 curl이 설치안되어있을 수 있는데
+그래서 이거 실행하기 전에 직접 컨테이너에 들어가서 curl 커맨드 잘 되나 확인해보는것도 좋다.
+
+curl이 없으면
+- wget 그런거 찾아서 써도 되고
+- 이미지에 직접 curl 설치하라고 Dockerfile에 기재해도 되고
+- bash 정도는 있으면 bash 내장 기능중에 특정 페이지로 요청해주는 그런 비밀기능이 있어서 그거 써도 된다.
+
+timeout 10s bash -c ': > /dev/tcp/localhost/8080' || exit 1
+
+▲ bash에서 /dev/tcp/localhost/8080 이런식으로 적으면 신기하게도 localhost:8080에 TCP 요청을 날려준다.
+TCP요청은 그냥 접속해본다는 뜻이고
+이미지에 bash가 있으면 이걸 써서 헬스체크 해도 된다.
+
+근데 그냥 /dev/tcp/localhost/8080 이렇게 입력만 하면 그 디렉터리 열라는 뜻이 될 수 있어서
+그걸 방지하려고 : > 이런 이상한 기호도 쓰면 된다.
+: 이건 텅빈 값이라는 뜻이고 
+> 이건 왼쪽 값을 오른쪽에 작성하라는 뜻이다.
+그래서 텅빈 값을 그 경로에 넣으라고 의미없는 명령어를 추가해준 것인데 그래야 잘동작한다.
+
+* nginx 컨테이너도 띄우기
+
+▲ 웹서버(nodeserver) 컨테이너 말고 nginx 컨테이너도 띄워야하니까 컨테이너 하나 추가해서 잘 입력해보자.
+컨테이너 이름, URI, 포트는 80:80, CPU와 메모리 적절히, healthcheck는 기본명령어
+이런거 설정하는 것 말고는 딱히 건드릴게 없으니 알아서 남자답게 채워보자.
+
+healthcheck 기본명령어: CMD-SHELL, curl -f http://localhost:80 || exit 1
+
+일단 두번째 컨테이너엔 nginx 컨테이너 띄운다고 이름(nginx1)이랑 이미지 다운받을 수 있는 경로(이미지 URI)를 작성해봤다.
+docker hub에 올려놨을 경우엔 docker.io/내아이디/리포지토리명:태그명 입력하면 된다.
+(예) 이름 - nginx1 / 이미지 URI - docker.io/minjaejeon0827/mynginx:latest 또는 docker.io/minjaejeon0827/mynginx:1
+
+아무튼 다 됐으면 태스크(Task) 정의 생성 눌러보면 된다.
+이제 클러스터(Cluster) 들어가서 서비스(Service) 생성 누르고 태스크(Task) 골라서 띄우면 되는데 그건 다음에 해보도록 하자.
